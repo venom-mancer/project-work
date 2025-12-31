@@ -138,7 +138,7 @@ so matching baseline is not necessarily a bug.
 
 
 ## Small personal note
-Yes, I set `K = 6` because it’s my favourite number
+I set `K = 6` because it’s my favourite number
 
 
 ## Future improvements (if I had more time)

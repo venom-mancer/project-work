@@ -1,161 +1,144 @@
-# Gold Collection Routing – Heuristic Solver
-**Author:** Ali Bavi Fard
+# Gold Collection Routing – My Solver (`s339414.py`)
+
+Hi! This is my solution for the “collect all gold and return to base” routing problem defined by the provided `Problem.py`.
+
+The short version:
+- The map is a **graph** of cities (nodes) connected by roads (edges).
+- City `0` is the **base**.
+- Each other city has some amount of **gold**.
+- I must produce a **legal path** that collects **all** gold and ends back at the base.
+- Traveling while carrying gold is expensive because the cost grows **non‑linearly** with the carried weight.
+
+This README explains what the code does and why.
 
 ---
 
-## Overview
-
-This project tackles a constrained routing and optimization problem defined in the provided `Problem.py`.  
-The goal is to collect **all gold from all cities** in a weighted graph and return it to the **base city (node 0)**, while minimizing a **non‑linear travel cost** that depends on both distance and carried weight.
-
-The challenge is not only to find valid paths, but to decide **when it is worth carrying more gold** and **when it is better to return to base**.
-
-This repository contains my final solution implemented in `s339414.py`.
-
----
-
-## Problem Summary (in my own words)
-
-- The map is a **graph**:
-  - Nodes = cities
-  - Edges = legal moves with distance `dist`
-- City `0` is the **base**
-- Every other city has some amount of **gold**
-- You start at the base with **0 carried gold**
-- You must:
-  - collect **all gold**
-  - **only unload at the base**
-  - end the path at `(0, 0)`
+## Problem recap (in my own words)
 
 ### Output format
-The solution must return a list of tuples:
+My solver must return a list of tuples:
 
 ```python
-[(city_1, gold_taken_1), (city_2, gold_taken_2), ..., (0, 0)]
+[(city, gold_taken), (city, gold_taken), ...]
 ```
 
-Each tuple means:
-1. Move from the previous city to `city_i`
-2. After arriving, take `gold_taken_i` gold from that city
+## Cost model (the key difficulty)
 
-Taking `0` gold is allowed and is used to **pass through cities** without collecting.
+For a single move along an edge `(i → j)` while carrying weight `g`:
+
+\[
+c = d_{ij} + (\alpha \cdot d_{ij} \cdot g)^{\beta}
+\]
+
+- `d_ij` is the road distance.
+- `g` is how much gold I’m carrying at that moment.
+- `alpha` and `beta` are fixed parameters provided by the instance.
+
+- Moving empty is cheap.
+- Moving while heavy can become **very** expensive, especially when `beta > 1`.
 
 ---
 
-## Cost Model (Very Important)
+## What the baseline does (and how I try to beat it)
 
-Each **edge traversal** `(u → v)` while carrying `w` gold costs:
+The baseline strategy (inside `Problem.py`) basically does:
+- For each city independently: `0 → city → 0` and pick all gold in one go.
 
-```
-cost = dist(u,v) + (alpha * dist(u,v) * w) ** beta
-```
+That is always valid, but not always optimal because:
+- It ignores the possibility of **partial pickups** (split heavy loads).
+- It ignores the possibility of smart chaining when it is beneficial.
 
-Implications:
-- Carrying gold makes movement expensive
-- The penalty grows **super‑linearly** when `beta > 1`
-- Long moves while heavy are very costly
-- Long moves while empty are cheap
-
-Because of this, blindly collecting many cities in one trip is usually a bad idea.
+My code tries to outperform the baseline mainly using **partial pickups** and a **baseline-aware decision rule**.
 
 ---
 
-## Baseline
+## How my solver works (high-level)
 
-The provided `Problem.baseline()` method implements a very safe strategy:
-
-- For each city:
-  - go from base → city (empty)
-  - take all its gold
-  - return to base
-
-This is always valid, but often sub‑optimal.
-My solution is designed to **never be worse than the baseline**, and to beat it when the graph structure allows.
-
----
-
-## My Approach
-
-### Key idea
-Instead of visiting one city per trip, I build **trips**:
-
-```
-0 → city A → city B → ... → 0
-```
-
-but **only** if adding another city is worth it.
-
-The core principle is:
-> Only add another city to the current trip if the extra cost is small compared to returning to base now.
-
-### Main components
-
-#### 1. Shortest‑path preprocessing
-I precompute:
-- shortest paths between all pairs of cities
+### 1) Precompute shortest paths (speed)
+The solver calls `nx.single_source_dijkstra_path` and `nx.single_source_dijkstra_path_length`
+from every node once, and stores:
+- shortest paths between all pairs
 - shortest distances between all pairs
 
-This avoids repeated Dijkstra calls and makes cost evaluation fast.
+This makes later evaluation fast because I can reuse shortest paths instead of recomputing them.
 
-#### 2. Trip‑based greedy strategy
-While there is still gold left:
-1. Start at the base with zero weight
-2. Repeatedly:
-   - evaluate all remaining cities
-   - compute the **marginal cost** of adding each city
-   - choose the city with the smallest adjusted marginal cost
-3. Stop the trip when adding a city becomes too expensive
-4. Return to base and unload
+### 2) Trip-based collection
+I structure the solution as repeated “trips”:
+- Start at base
+- Visit one or more cities (sometimes picking partial gold)
+- Return to base and unload
+- Repeat until all gold is collected
 
-#### 3. Marginal cost reasoning
-For a candidate city `c`:
+### 3) Candidate filtering (keep decisions local)
+At each step, I don’t evaluate all cities (that’s slow and often unnecessary).
+I select candidates using:
+- a “radius” rule: cities relatively closer to my current position than to base
+- plus the `K` nearest cities (I set `K = 6`)
 
+This keeps the solver fast and focuses on reasonable local moves.
+
+### 4) Partial pickup (important improvement)
+If `beta > 1`, carrying a huge amount in one go can be worse than splitting it into lighter trips.
+So when I decide to visit a city, I may take **only part** of its gold.
+
+In code:
+- I compute an “optimal-ish” load cap based on the city’s distance to base.
+- Then I take:
+  ```python
+  take_amount = min(remaining_gold[city], max(1.0, optimal_load_cap))
+  ```
+- If a city still has gold left, it stays in the remaining set and can be revisited later.
+
+### 5) Baseline-aware decision rule
+When I’m considering a city `city`, I compare two options:
+
+**Option A (baseline-style later):**
+- Return to base now
+- Later do a separate trip `0 → city → 0` for the chosen pickup amount
+
+**Option B (do it now):**
+- Go to `city` now with current carried weight
+- Return to base with increased carried weight
+
+I compute:
+```python
+delta = option_b - option_a
 ```
-marginal_cost =
-    (cost to go current → c with current weight)
-  + (cost to return c → base with increased weight)
-  − (cost to return current → base now)
-```
 
-If this value is large and positive, the city is skipped.
+- If `delta < 0`, doing it now is better than postponing it baseline-style.
+- If `delta >= 0`, baseline-style is better, so I tend to stop the trip and return to base.
 
-#### 4. Heavy‑gold penalty
-To avoid picking large gold too early, I add a small bias:
-
-```
-penalty = λ * gold_at_city * distance_to_base
-```
-
-This naturally prioritizes:
-- small gold first
-- heavy gold later in the trip or in its own trip
-
-#### 5. Safe stop rule
-- At base: allow at least one pickup
-- Away from base: stop when marginal cost becomes too large relative to the cost of returning
-
-This ensures robustness and prevents catastrophic over‑loading.
+I also add a small penalty term to discourage choosing extremely heavy and far cities too early,
+just to break ties and steer decisions gently.
 
 ---
 
-## Why matching the baseline is OK
+## What I consider “success”
+- The returned path is always legal (edge-by-edge moves via shortest paths).
+- All gold is eventually collected (including partial pickups).
+- The path ends at base `(0, 0)`.
+- I beat the baseline on at least some instances (especially where partial pickups help).
 
-On some instances (especially with large gold and `beta ≈ 1.5`):
-- carrying extra gold becomes extremely expensive
-- the baseline strategy is actually near‑optimal
+Note: On some instances (high `beta`, very large gold values), the baseline can already be close to optimal,
+so matching baseline is not necessarily a bug.
 
-In those cases, my solver **correctly chooses not to bundle cities**, resulting in the same cost as the baseline.
 
-This is expected behavior and a sign that the stop condition is working as intended.
+## File overview
+- `s339414.py`: my solver. It exposes:
+  ```python
+  def solution(p: Problem):
+      ...
+      return path
+  ```
 
 ---
 
-## Properties of the Solution
+## Small personal note
+Yes, I set `K = 6` because it’s my favourite number
 
-✔ Always produces **legal moves**  
-✔ Never drops gold outside the base  
-✔ Always collects **all gold**  
-✔ Always ends at `(0, 0)`  
-✔ Never worse than the baseline  
-✔ Sometimes better when the graph allows bundling  
+---
 
+## Future improvements (if I had more time)
+- Tune the candidate filtering (radius/K) based on `beta`
+- Allow slight “epsilon” chaining even when `delta` is slightly positive (to avoid being too conservative)
+- Add local search / swapping inside a trip for better ordering

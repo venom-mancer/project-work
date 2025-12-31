@@ -1,6 +1,5 @@
 import logging
 from itertools import combinations
-
 import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx

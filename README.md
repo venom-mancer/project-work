@@ -26,12 +26,21 @@ My solver must return a list of tuples:
 For a single move along an edge `(i → j)` while carrying weight `g`:
 
 \[
-c = d_{ij} + (\alpha \cdot d_{ij} \cdot g)^{\beta}
+c = d_{ij} + \left( \alpha \cdot d_{ij} \cdot g \right)^{\beta}
 \]
 
-- `d_ij` is the road distance.
-- `g` is how much gold I’m carrying at that moment.
-- `alpha` and `beta` are fixed parameters provided by the instance.
+Or in code:
+```python
+cost = dist + (alpha * dist * weight) ** beta
+```
+
+Where:
+- `d_{ij}` (or `dist`) is the road distance between cities `i` and `j`
+- `g` (or `weight`) is how much gold I'm carrying at that moment
+- `α` (`alpha`) and `β` (`beta`) are fixed parameters provided by the instance
+
+- Moving empty (`g = 0`) is cheap: cost = `d_{ij}`
+- Moving while heavy can become **very** expensive, especially when `β > 1`
 
 - Moving empty is cheap.
 - Moving while heavy can become **very** expensive, especially when `beta > 1`.

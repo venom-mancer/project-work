@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+
 # Distribution / packaging
 build/
 dist/
@@ -47,3 +48,6 @@ htmlcov/
 # Temporary files
 *.tmp
 *.bak
+
+# Test files
+test_solution.py

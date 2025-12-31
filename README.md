@@ -11,7 +11,6 @@ The short version:
 
 This README explains what the code does and why.
 
----
 
 ## Problem recap (in my own words)
 
@@ -37,7 +36,6 @@ c = d_{ij} + (\alpha \cdot d_{ij} \cdot g)^{\beta}
 - Moving empty is cheap.
 - Moving while heavy can become **very** expensive, especially when `beta > 1`.
 
----
 
 ## What the baseline does (and how I try to beat it)
 
@@ -50,7 +48,6 @@ That is always valid, but not always optimal because:
 
 My code tries to outperform the baseline mainly using **partial pickups** and a **baseline-aware decision rule**.
 
----
 
 ## How my solver works (high-level)
 
@@ -111,7 +108,6 @@ delta = option_b - option_a
 I also add a small penalty term to discourage choosing extremely heavy and far cities too early,
 just to break ties and steer decisions gently.
 
----
 
 ## What I consider “success”
 - The returned path is always legal (edge-by-edge moves via shortest paths).
@@ -131,12 +127,10 @@ so matching baseline is not necessarily a bug.
       return path
   ```
 
----
 
 ## Small personal note
 Yes, I set `K = 6` because it’s my favourite number
 
----
 
 ## Future improvements (if I had more time)
 - Tune the candidate filtering (radius/K) based on `beta`

@@ -1,5 +1,5 @@
 # Gold Collection Routing 
-This Project was done by me (s339414) and my friend (s3391144)
+This Project was done by me (s339414) and my friend (s339144)
 
 This is my solution for the “collect all gold and return to base” routing problem defined by the provided `Problem.py`.
 

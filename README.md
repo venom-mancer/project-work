@@ -27,7 +27,7 @@ Our solver must return a list of tuples:
 For a single move along an edge `(i → j)` while carrying weight `g`:
 
 \[
-c = d_{ij} + \left( \alpha \cdot d_{ij} \cdot g \right)^{\beta}
+$c = d_{ij} + (\alpha d_{ij} g)^{\beta}$
 \]
 
 Or in code:

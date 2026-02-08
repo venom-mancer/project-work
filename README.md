@@ -139,7 +139,7 @@ so matching baseline is not necessarily a bug.
 
 
 ## Small personal note
-We set `K = 6` there is any reason behind it, its just a number
+We set `K = 6` there is no reason behind it, its just a number
 
 
 ## Future improvements (if we had more time)

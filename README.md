@@ -137,7 +137,7 @@ We also add a small penalty term to discourage selecting very heavy & far cities
 ### 7) Final cleanup
 At the end we:
 - ensure the path ends at base,
-- merge any accidental consecutive duplicates (paranoia cleanup). fileciteturn15file1
+- merge any accidental consecutive duplicates (paranoia cleanup).
 
 ---
 

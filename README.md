@@ -108,7 +108,7 @@ To avoid extremely small micro‑pickups, the cap is **ramped up** with repeated
 
 ```python
 ramped_cap = optimal_cap * (1.25 ** visits)
-``` fileciteturn15file1
+``` 
 
 ### 6) Baseline‑aware decision rule (Option A vs Option B)
 For each candidate city we compare:

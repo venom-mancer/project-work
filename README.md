@@ -6,7 +6,7 @@ This repository contains our solution for the **“collect all gold and return t
 
 ---
 
-## Problem recap (in our own words)
+## Problem recap
 
 - The map is a **weighted graph** of cities (nodes) connected by roads (edges).
 - City `0` is the **base**.

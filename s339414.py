@@ -66,8 +66,10 @@ def solution(p: Problem):
         nonlocal current_city, carried_gold
         if current_city != 0:
             pth = get_shortest_path(current_city, 0)
-            move_along(pth)
-            current_city = 0
+            if pth is not None:
+                move_along(pth)
+                current_city = 0
+            # If no path exists, we're stuck - but this shouldn't happen in a valid graph
         carried_gold = 0.0
 
     # This function calculates the optimal load cap for partial pickups

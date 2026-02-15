@@ -1,148 +1,168 @@
-# Gold Collection Routing 
-This project was done by us: me (s339414) and my friend (s339144) Siavash Sanaee Poor
+# Gold Collection Routing
 
-This is our solution for the “collect all gold and return to base” routing problem defined by the provided `Problem.py`.
+This project was done by us: **s339414** and **s339144** (Siavash Sanaee Poor). fileciteturn15file0
 
-The short version:
-- The map is a **graph** of cities (nodes) connected by roads (edges).
-- City `0` is the **base**.
-- Each other city has some amount of **gold**.
-- We must produce a **legal path** that collects **all** gold and ends back at the base.
-- Traveling while carrying gold is expensive because the cost grows **non‑linearly** with the carried weight.
+This repository contains our solution for the **“collect all gold and return to base”** routing problem defined by the provided `Problem.py`.
 
-This README explains what the code does and why.
-
+---
 
 ## Problem recap (in our own words)
 
+- The map is a **weighted graph** of cities (nodes) connected by roads (edges).
+- City `0` is the **base**.
+- Each other city contains some amount of **gold**.
+- The solver must output a **legal path** that:
+  - starts at base `0`,
+  - collects **all** gold from every non‑base city,
+  - ends at base `0`,
+  - and moves **edge‑by‑edge** (no teleporting / no missing edges).
+
 ### Output format
-Our solver must return a list of tuples:
+The solver returns a list of tuples:
 
 ```python
 [(city, gold_taken), (city, gold_taken), ...]
 ```
 
-## Cost model (the key difficulty)
+`gold_taken` is how much gold is collected at that visit (can be partial).
+
+---
+
+## Cost model (key difficulty)
 
 For a single move along an edge `(i → j)` while carrying weight `g`:
 
-\[
-$c = d_{ij} + (\alpha d_{ij} g)^{\beta}$
-\]
-
-Or in code:
 ```python
 cost = dist + (alpha * dist * weight) ** beta
 ```
 
-Where:
-- `d_{ij}` (or `dist`) is the road distance between cities `i` and `j`
-- `g` (or `weight`) is how much gold we're carrying at that moment
-- `α` (`alpha`) and `β` (`beta`) are fixed parameters provided by the instance
+- Moving empty (`g = 0`) costs just the distance.
+- Carrying gold increases the cost, and for `beta > 1` the penalty becomes **strongly non‑linear**.
 
-- Moving empty (`g = 0`) is cheap: cost = `d_{ij}`
-- Moving while heavy can become **very** expensive, especially when `β > 1`
+---
 
-- Moving empty is cheap.
-- Moving while heavy can become **very** expensive, especially when `beta > 1`.
+## Baseline strategy
 
+The baseline (provided in `Problem.py`) is essentially:
+- for each city independently: `0 → city → 0` and collect all its gold in one trip.
 
-## What the baseline does (and how we try to beat it)
+This is always valid, but it can be inefficient when `beta > 1` because carrying a large amount for long distances becomes very expensive.
 
-The baseline strategy (inside `Problem.py`) basically does:
-- For each city independently: `0 → city → 0` and pick all gold in one go.
+---
 
-That is always valid, but not always optimal because:
-- It ignores the possibility of **partial pickups** (split heavy loads).
-- It ignores the possibility of smart chaining when it is beneficial.
+## Our approach (how `s339414.py` works)
 
-My code tries to outperform the baseline mainly using **partial pickups** and a **baseline-aware decision rule**.
+Our implementation is **trip‑based** and **baseline‑aware**, and it is designed to always produce admissible paths. fileciteturn15file1
 
+### 1) Admissible path construction (no invalid A→B steps)
+Whenever we decide to go from the current city to a target city, we:
+- compute the **shortest path** as a list of nodes,
+- append *every intermediate node* to the output path with pickup `0.0`.
 
-## How our solver works (high-level)
+This guarantees that **every consecutive step in the output is a real edge**. fileciteturn15file1
 
-### 1) Precompute shortest paths (speed)
-The solver calls `nx.single_source_dijkstra_path` and `nx.single_source_dijkstra_path_length`
-from every node once, and stores:
-- shortest paths between all pairs
-- shortest distances between all pairs
+We also prevent `A→A` steps by merging consecutive identical nodes (and we also filter out `current_city` from candidates). fileciteturn15file1
 
-This makes later evaluation fast because we can reuse shortest paths instead of recomputing them.
+### 2) Shortest paths: lazy single‑source cache (fast, not all‑pairs)
+We do **not** precompute all‑pairs shortest paths (too expensive).
+Instead, we use a cache:
 
-### 2) Trip-based collection
-We structure the solution as repeated “trips”:
-- Start at base
-- Visit one or more cities (sometimes picking partial gold)
-- Return to base and unload
-- Repeat until all gold is collected
+- the first time we need shortest paths from a source `u`, we run:
+  `nx.single_source_dijkstra(graph, source=u, weight="dist")`
+- we store both:
+  - shortest paths from `u` to all nodes
+  - shortest distances from `u` to all nodes fileciteturn15file1
 
-### 3) Candidate filtering (keep decisions local)
-At each step, we don’t evaluate all cities (that’s slow and often unnecessary).
-We select candidates using:
-- a “radius” rule: cities relatively closer to my current position than to base
-- plus the `K` nearest cities (we set `K = 6`)
+This makes repeated evaluations fast without huge upfront cost.
 
-This keeps the solver fast and focuses on reasonable local moves.
+### 3) Trip‑based collection loop
+We repeatedly perform trips:
 
-### 4) Partial pickup (important improvement)
-If `beta > 1`, carrying a huge amount in one go can be worse than splitting it into lighter trips.
-So when we decide to visit a city, we may take **only part** of its gold.
+1. Ensure we are at base (`go_to_base()` resets carried weight to 0).
+2. While the trip is still beneficial:
+   - choose a next city among candidates,
+   - possibly take **partial gold**,
+   - update carried weight.
+3. Return to base and start a new trip.
+4. Stop only when **all gold is collected**. fileciteturn15file1
 
-In code:
-- We compute an “optimal-ish” load cap based on the city’s distance to base.
-- Then we take:
-  ```python
-  take_amount = min(remaining_gold[city], max(1.0, optimal_load_cap))
-  ```
-- If a city still has gold left, it stays in the remaining set and can be revisited later.
+### 4) Candidate filtering (keep decisions local)
+Evaluating every city every step is slow, so we restrict candidates using:
 
-### 5) Baseline-aware decision rule
-When we’re considering a city `city`, we compare two options:
+- **Radius rule:** keep cities where  
+  `dist(current, city) ≤ 0.8 * dist(base, city)`
+- plus the **K nearest** cities by `dist(current, city)` with `K = 6` fileciteturn15file1
 
-**Option A (baseline-style later):**
-- Return to base now
-- Later do a separate trip `0 → city → 0` for the chosen pickup amount
+This keeps the solver fast and focused.
+
+### 5) Partial pickup (main improvement for beta > 1)
+When `beta > 1`, splitting large loads into smaller loads can reduce the non‑linear penalty.
+
+For each candidate city, we compute an “optimal-ish” load cap `w*` based on the city’s distance to base, and choose:
+
+```python
+take = min(remaining_gold[city], max(1.0, ramped_cap))
+```
+
+To avoid extremely small micro‑pickups, the cap is **ramped up** with repeated visits:
+
+```python
+ramped_cap = optimal_cap * (1.25 ** visits)
+``` fileciteturn15file1
+
+### 6) Baseline‑aware decision rule (Option A vs Option B)
+For each candidate city we compare:
+
+**Option A (baseline‑style later):**
+- return to base now,
+- later do a separate trip `0 → city → 0` for the chosen pickup.
 
 **Option B (do it now):**
-- Go to `city` now with current carried weight
-- Return to base with increased carried weight
+- go to `city` now with current carried weight,
+- pick gold,
+- return to base with increased carried weight.
 
 We compute:
+
 ```python
 delta = option_b - option_a
 ```
 
-- If `delta < 0`, doing it now is better than postponing it baseline-style.
-- If `delta >= 0`, baseline-style is better, so we tend to stop the trip and return to base.
+- If `delta < 0`, doing it now is better than postponing baseline‑style.
+- If no city yields `delta < 0`, we typically end the trip and return base.
+- If we are at base and still need progress, we force a safe move to the nearest reachable gold city. fileciteturn15file1
 
-We also add a small penalty term to discourage choosing extremely heavy and far cities too early,
-just to break ties and steer decisions gently.
+We also add a small penalty term to discourage selecting very heavy & far cities too early (tie‑breaking / stability). fileciteturn15file1
 
+### 7) Final cleanup
+At the end we:
+- ensure the path ends at base,
+- merge any accidental consecutive duplicates (paranoia cleanup). fileciteturn15file1
 
-## What we consider “success”
-- The returned path is always legal (edge-by-edge moves via shortest paths).
-- All gold is eventually collected (including partial pickups).
-- The path ends at base `(0, 0)`.
-- We beat the baseline on at least some instances (especially where partial pickups help).
+---
 
-Note: On some instances (high `beta`, very large gold values), the baseline can already be close to optimal,
-so matching baseline is not necessarily a bug.
+## Experimental results (sample benchmark)
 
+The following table shows results from our local tests (your provided summary):
+This Test took 34 minutes to finish with the results you see below:
 
-## File overview
-- `s339414.py`: our solver. It exposes:
-  ```python
-  def solution(p: Problem):
-      ...
-      return path
-  ```
+| Test | Cities | Density | Alpha | Beta | Baseline | Solution | Improve % | Status |
+|---:|---:|---:|---:|---:|---:|---:|---:|:---|
+| 1 | 100 | 0.2 | 1 | 1 | 25266.405619 | 25266.405619 | -0.00% | Equal |
+| 2 | 100 | 0.2 | 2 | 1 | 50425.309618 | 50425.309618 | +0.00% | Equal |
+| 3 | 100 | 0.2 | 1 | 2 | 5334401.927003 | 48236.169897 | +99.10% | Better |
+| 4 | 100 | 1.0 | 1 | 1 | 18266.185796 | 18266.185796 | +0.00% | Equal |
+| 5 | 100 | 1.0 | 2 | 1 | 36457.918462 | 36457.918462 | -0.00% | Equal |
+| 6 | 100 | 1.0 | 1 | 2 | 5404978.088996 | 35601.959271 | +99.34% | Better |
+| 7 | 1000 | 0.2 | 1 | 1 | 195402.958104 | 195399.306350 | +0.00% | Better |
+| 8 | 1000 | 0.2 | 2 | 1 | 390028.721263 | 390027.967438 | +0.00% | Better |
+| 9 | 1000 | 0.2 | 1 | 2 | 37545927.702135 | 338677.888992 | +99.10% | Better |
+| 10 | 1000 | 1.0 | 1 | 1 | 192936.233777 | 192925.978256 | +0.01% | Better |
+| 11 | 1000 | 1.0 | 2 | 1 | 385105.641496 | 385101.490910 | +0.00% | Better |
+| 12 | 1000 | 1.0 | 1 | 2 | 57580018.868725 | 380593.549304 | +99.34% | Better |
 
+Interpretation:
+- For `beta = 1`, improvements are typically ~0% (the cost is linear in carried weight, so partial splitting helps much less).
+- For `beta = 2`, partial pickups strongly reduce the non‑linear penalty, giving very large improvements.
 
-## Small personal note
-We set `K = 6` there is no reason behind it, its just a number
-
-
-## Future improvements (if we had more time)
-- Tune the candidate filtering (radius/K) based on `beta`
-- Allow slight “epsilon” chaining even when `delta` is slightly positive (to avoid being too conservative)
-- Add local search / swapping inside a trip for better ordering
+---

@@ -50,7 +50,7 @@ This is always valid, but it can be inefficient when `beta > 1` because carrying
 
 ---
 
-## Our approach (how `s339414.py` works)
+## Our approach (how it works)
 
 Our implementation is **trip‑based** and **baseline‑aware**, and it is designed to always produce admissible paths. fileciteturn15file1
 

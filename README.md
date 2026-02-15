@@ -1,6 +1,6 @@
 # Gold Collection Routing
 
-This project was done by us: **s339414** and **s339144** (Siavash Sanaee Poor). fileciteturn15file0
+This project was done by us: **s339414**(Ali Bavi Fard) and **s339144**(Siavash Sanaee Poor) .
 
 This repository contains our solution for the **“collect all gold and return to base”** routing problem defined by the provided `Problem.py`.
 
@@ -52,16 +52,16 @@ This is always valid, but it can be inefficient when `beta > 1` because carrying
 
 ## Our approach (how it works)
 
-Our implementation is **trip‑based** and **baseline‑aware**, and it is designed to always produce admissible paths. fileciteturn15file1
+Our implementation is **trip‑based** and **baseline‑aware**, and it is designed to always produce admissible paths.
 
 ### 1) Admissible path construction (no invalid A→B steps)
 Whenever we decide to go from the current city to a target city, we:
 - compute the **shortest path** as a list of nodes,
 - append *every intermediate node* to the output path with pickup `0.0`.
 
-This guarantees that **every consecutive step in the output is a real edge**. fileciteturn15file1
+This guarantees that **every consecutive step in the output is a real edge**.
 
-We also prevent `A→A` steps by merging consecutive identical nodes (and we also filter out `current_city` from candidates). fileciteturn15file1
+We also prevent `A→A` steps by merging consecutive identical nodes (and we also filter out `current_city` from candidates).
 
 ### 2) Shortest paths: lazy single‑source cache (fast, not all‑pairs)
 We do **not** precompute all‑pairs shortest paths (too expensive).
@@ -130,9 +130,9 @@ delta = option_b - option_a
 
 - If `delta < 0`, doing it now is better than postponing baseline‑style.
 - If no city yields `delta < 0`, we typically end the trip and return base.
-- If we are at base and still need progress, we force a safe move to the nearest reachable gold city. fileciteturn15file1
+- If we are at base and still need progress, we force a safe move to the nearest reachable gold city.
 
-We also add a small penalty term to discourage selecting very heavy & far cities too early (tie‑breaking / stability). fileciteturn15file1
+We also add a small penalty term to discourage selecting very heavy & far cities too early (tie‑breaking / stability).
 
 ### 7) Final cleanup
 At the end we:

@@ -95,8 +95,8 @@ Evaluating every city every step is slow, so we restrict candidates using:
 
 This keeps the solver fast and focused.
 
-### 5) Partial pickup (main improvement for beta > 1)
-When `beta > 1`, splitting large loads into smaller loads can reduce the non‑linear penalty.
+### 5) Partial pickup
+splitting large loads into smaller loads can reduce the non‑linear penalty.
 
 For each candidate city, we compute an “optimal-ish” load cap `w*` based on the city’s distance to base, and choose:
 
@@ -144,6 +144,7 @@ At the end we:
 ## Experimental results (sample benchmark)
 
 The following table shows results from our local tests (your provided summary):
+
 This Test took 34 minutes to finish with the results you see below:
 
 | Test | Cities | Density | Alpha | Beta | Baseline | Solution | Improve % | Status |

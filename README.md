@@ -145,7 +145,7 @@ At the end we:
 
 The following table shows results from our local tests (your provided summary):
 
-This Test took 34 minutes to finish with the results you see below:
+This Test took 33 minutes to finish with the results you see below:
 
 | Test | Cities | Density | Alpha | Beta | Baseline | Solution | Improve % | Status |
 |---:|---:|---:|---:|---:|---:|---:|---:|:---|
